@@ -1,0 +1,11 @@
+name = "wonderwalk"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wonderwalk-db"
+database_id = "8987aa16-f4d4-451f-8acc-b191753f10da"
+
+[vars]
+CLERK_DOMAIN = "dashing-salmon-84.clerk.accounts.dev"

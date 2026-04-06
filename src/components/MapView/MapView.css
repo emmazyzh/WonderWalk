@@ -1,0 +1,113 @@
+/* MapView.css */
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(160deg, #EFF6FF 0%, #F0F4FF 50%, #FDF4FF 100%);
+}
+
+.composable-map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Geography hover cursor */
+.map-geo {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.map-geo--visited {
+  filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.5));
+}
+
+.map-geo--visited:hover {
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7));
+}
+
+.city-marker {
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+.city-marker-dot {
+  fill: rgba(255, 255, 255, 0.96);
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.4;
+}
+
+.city-marker-pin {
+  fill: #f97316;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 0.7;
+  filter: drop-shadow(0 4px 5px rgba(249, 115, 22, 0.26));
+}
+
+/* Tooltip */
+.map-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 200;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-lg);
+  min-width: 120px;
+  max-width: 200px;
+  animation: tooltipFadeIn 0.15s ease;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.map-tooltip-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.map-tooltip-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.map-tooltip-checkins {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.map-tooltip-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-tooltip-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.map-tooltip-date {
+  font-size: 12px;
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+
+.map-tooltip-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}

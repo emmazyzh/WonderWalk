@@ -1,0 +1,130 @@
+/* NavBar.css */
+.navbar {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  z-index: 110;
+  pointer-events: none;
+}
+
+.navbar-left,
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.navbar-right {
+  justify-content: flex-end;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 40px rgba(51, 65, 85, 0.14);
+}
+
+.logo-emoji {
+  font-size: 26px;
+  animation: logoSpin 8s linear infinite;
+}
+
+@keyframes logoSpin {
+  0%, 90% { transform: rotate(0deg) scale(1); }
+  95% { transform: rotate(20deg) scale(1.1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+.logo-text {
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 24px;
+  background: linear-gradient(135deg, #1d4ed8, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.7px;
+}
+
+.nav-icon-btn {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  transition: transform var(--transition-spring), box-shadow var(--transition-smooth), background var(--transition-smooth);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+}
+
+.nav-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.96);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+}
+
+.nav-icon-btn:active {
+  transform: scale(0.92);
+}
+
+.nav-lang-btn {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 13px;
+  width: auto;
+  padding: 0 14px;
+  color: var(--color-primary);
+  border: 1.5px solid rgba(37, 99, 235, 0.3);
+}
+
+.nav-map-toggle {
+  color: var(--color-primary);
+}
+
+.nav-avatar {
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  transition: transform var(--transition-spring);
+}
+
+.nav-avatar:hover {
+  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+  }
+
+  .logo-text {
+    font-size: 20px;
+  }
+
+  .navbar-logo {
+    padding-right: 14px;
+  }
+}

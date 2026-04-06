@@ -1,0 +1,227 @@
+/* =============================================
+   WonderWalk Design System
+   Claymorphism + Kids/Travel Theme
+   Font: Nunito (headings) + DM Sans (body)
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600&display=swap');
+
+/* ---- Design Tokens ---- */
+:root {
+  /* Colors - Kids Learning palette (Blue + Yellow + Pink) */
+  --color-primary: #2563EB;
+  --color-primary-light: #3B82F6;
+  --color-primary-bg: #EFF6FF;
+  --color-secondary: #F59E0B;
+  --color-secondary-light: #FCD34D;
+  --color-accent: #EC4899;
+  --color-accent-light: #F472B6;
+  --color-success: #10B981;
+  --color-danger: #EF4444;
+
+  /* Backgrounds */
+  --bg: #F0F4FF;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-glass: rgba(255, 255, 255, 0.6);
+  --bg-overlay: rgba(15, 23, 78, 0.45);
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-on-primary: #FFFFFF;
+
+  /* Borders */
+  --border-color: #E2E8F0;
+  --border-card: rgba(255, 255, 255, 0.9);
+
+  /* Radii */
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 32px;
+  --radius-xl: 48px;
+  --radius-full: 9999px;
+
+  /* Shadows - Clay style */
+  --shadow-sm: 0 2px 8px rgba(37, 99, 235, 0.08);
+  --shadow-md: 0 4px 20px rgba(37, 99, 235, 0.12), 0 1px 4px rgba(37, 99, 235, 0.08);
+  --shadow-lg: 0 8px 32px rgba(37, 99, 235, 0.16), 0 2px 8px rgba(37, 99, 235, 0.08);
+  --shadow-card: 0 8px 24px rgba(15, 23, 78, 0.10), 0 2px 6px rgba(15, 23, 78, 0.06);
+  --shadow-btn: 0 4px 14px rgba(37, 99, 235, 0.35);
+  --shadow-btn-accent: 0 4px 14px rgba(236, 72, 153, 0.35);
+
+  /* Typography */
+  --font-heading: 'Nunito', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-smooth: 200ms ease;
+
+  /* Navbar */
+  --navbar-height: 64px;
+
+  /* Map accent colors */
+  --map-visited: #F59E0B;
+  --map-visited-hover: #FBBF24;
+  --map-default: #BFDBFE;
+  --map-default-hover: #93C5FD;
+  --map-border: #93C5FD;
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+/* ---- Animated background blobs ---- */
+.bg-blobs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
+  animation: blobFloat 12s ease-in-out infinite;
+}
+
+.bg-blob-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #93C5FD, #BFDBFE);
+  top: -120px;
+  left: -100px;
+  animation-delay: 0s;
+}
+
+.bg-blob-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #FCD34D, #FDE68A);
+  bottom: -80px;
+  right: -80px;
+  animation-delay: -4s;
+}
+
+.bg-blob-3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, #F9A8D4, #FBCFE8);
+  top: 40%;
+  left: 60%;
+  animation-delay: -8s;
+}
+
+@keyframes blobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+/* ---- Button base styles ---- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--color-primary);
+  color: white;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 16px;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: transform var(--transition-spring), box-shadow var(--transition-smooth);
+  user-select: none;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-primary:active {
+  transform: scale(0.95);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--color-accent), #F472B6);
+  box-shadow: var(--shadow-btn-accent);
+}
+
+.btn-accent:hover {
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+}
+
+/* ---- Glass card ---- */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- Checkin pin bounce ---- */
+@keyframes pinBounce {
+  0% { transform: translateY(-20px) scale(0.5); opacity: 0; }
+  60% { transform: translateY(4px) scale(1.1); opacity: 1; }
+  80% { transform: translateY(-4px) scale(0.95); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.pin-enter {
+  animation: pinBounce 0.5s var(--transition-spring) forwards;
+}
+
+/* ---- Ant Design token overrides ---- */
+.ant-drawer-body {
+  padding: 0 !important;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
