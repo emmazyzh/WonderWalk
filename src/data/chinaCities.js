@@ -1,3 +1,5 @@
+import { CHINA_CITY_COORDINATES } from './chinaCityCoordinates'
+
 export const CHINA_PROVINCE_CITIES = {
   '110000': { provinceName: '北京市', cities: ['北京市'] },
   '120000': { provinceName: '天津市', cities: ['天津市'] },
@@ -50,9 +52,15 @@ export function getProvinceCities(provinceCode) {
     provinceName: province.provinceName,
     name: city,
     nameEn: city,
+    coordinates: getChinaCityCoordinate(provinceCode, city),
   }))
 }
 
 export function getAllChinaCities() {
   return Object.keys(CHINA_PROVINCE_CITIES).flatMap((provinceCode) => getProvinceCities(provinceCode))
+}
+
+export function getChinaCityCoordinate(provinceCode, cityName) {
+  const city = CHINA_CITY_COORDINATES[provinceCode]?.[cityName]
+  return city ? [city.lng, city.lat] : null
 }

@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import useCheckinStore from '../../store/useCheckinStore'
 import { getWorldCountryByCode } from '../../data/worldCountries'
+import { getChinaCityCoordinate } from '../../data/chinaCities'
 import './MapView.css'
 
 const WORLD_GEO = '/data/world-110m.json'
@@ -127,11 +128,11 @@ export default function MapView({ onCheckinRequest }) {
   const { mapMode, language, checkins, getCheckedCodes, getCheckinsByCode } = useCheckinStore()
   const [tooltipTitle, setTooltipTitle] = useState('')
   const [tooltipSubtitle, setTooltipSubtitle] = useState('')
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipCheckins, setTooltipCheckins] = useState([])
   const [tooltipCities, setTooltipCities] = useState([])
   const [tooltipVariant, setTooltipVariant] = useState('province')
+  const tooltipRef = useRef(null)
   const [geoData, setGeoData] = useState(null)
   const checkedCodes = getCheckedCodes()
   const chinaProvinceCheckins = useMemo(
@@ -149,13 +150,13 @@ export default function MapView({ onCheckinRequest }) {
         setGeoData(normalizeGeoData(data, mapMode))
       })
       .catch((err) => console.error('Failed to load map data:', err))
-  }, [geoUrl])
+  }, [geoUrl, mapMode])
 
   const mapConfig = mapMode === 'china'
     ? { center: [104, 38], zoom: 1.22, minZoom: 1, maxZoom: 6 }
     : { center: [0, 28], zoom: 1, minZoom: 1, maxZoom: 6 }
 
-  const handleMouseEnter = (geo, evt) => {
+  const handleMouseEnter = (geo) => {
     const code = getFeatureCode(geo, mapMode)
     const checkins = getCheckinsByCode(code, mapMode)
     const cityTags = [...new Set(checkins.map((item) => getChinaCityName(item)).filter(Boolean))]
@@ -173,9 +174,12 @@ export default function MapView({ onCheckinRequest }) {
     setShowTooltip(true)
   }
 
-  const handleMouseMove = (evt) => {
-    setTooltipPos({ x: evt.clientX, y: evt.clientY })
-  }
+  const handleMouseMove = useCallback((evt) => {
+    if (tooltipRef.current) {
+      tooltipRef.current.style.left = `${evt.clientX + 14}px`
+      tooltipRef.current.style.top = `${evt.clientY - 10}px`
+    }
+  }, [])
 
   const handleMouseLeave = () => {
     setShowTooltip(false)
@@ -239,13 +243,21 @@ export default function MapView({ onCheckinRequest }) {
         return acc
       }, {})
 
-      return Object.entries(groupedByCity).map(([cityKey, cityItems], index) => ({
-        id: `${provinceCode}-${cityKey}`,
-        cityName: getChinaCityName(cityItems[0]) || cityKey,
-        provinceName: cityItems[0].province_name || (cityItems[0].name_zh?.split(' · ')[0] ?? ''),
-        checkins: cityItems,
-        coordinates: getMarkerCoordinates(provinceCenters[provinceCode], index),
-      }))
+      return Object.entries(groupedByCity).map(([cityKey, cityItems], index) => {
+        const cityName = getChinaCityName(cityItems[0]) || cityKey
+        const provinceName = cityItems[0].province_name || (cityItems[0].name_zh?.split(' · ')[0] ?? '')
+        const markerProvinceCode = getChinaProvinceCode(cityItems[0])
+        const coordinates = getChinaCityCoordinate(markerProvinceCode, cityName)
+          || getMarkerCoordinates(provinceCenters[provinceCode], index)
+
+        return {
+          id: `${provinceCode}-${cityKey}`,
+          cityName,
+          provinceName,
+          checkins: cityItems,
+          coordinates,
+        }
+      })
     })
   }, [chinaProvinceCheckins, mapMode, provinceCenters])
 
@@ -287,7 +299,7 @@ export default function MapView({ onCheckinRequest }) {
                         key={geo.rsmKey || index}
                         geography={geo}
                         className={`map-geo ${isVisited ? 'map-geo--visited' : ''}`}
-                        onMouseEnter={(evt) => handleMouseEnter(geo, evt)}
+                        onMouseEnter={() => handleMouseEnter(geo)}
                         onMouseLeave={handleMouseLeave}
                         onClick={() => handleClick(geo)}
                         style={{
@@ -330,7 +342,10 @@ export default function MapView({ onCheckinRequest }) {
                   setTooltipCities([])
                   setTooltipVariant('city')
                   setShowTooltip(true)
-                  setTooltipPos({ x: evt.clientX, y: evt.clientY })
+                  if (tooltipRef.current) {
+                    tooltipRef.current.style.left = `${evt.clientX + 14}px`
+                    tooltipRef.current.style.top = `${evt.clientY - 10}px`
+                  }
                 }}
                 onMouseLeave={handleMouseLeave}
               >
@@ -345,8 +360,8 @@ export default function MapView({ onCheckinRequest }) {
       {/* Custom tooltip */}
       {showTooltip && tooltipTitle && (
         <div
+          ref={tooltipRef}
           className="map-tooltip"
-          style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 10 }}
         >
           <div className="map-tooltip-name">{tooltipTitle}</div>
           {tooltipSubtitle && <div className="map-tooltip-subtitle">{tooltipSubtitle}</div>}
