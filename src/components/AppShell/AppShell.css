@@ -1,0 +1,28 @@
+.app-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.app-shell--fullscreen {
+  pointer-events: none;
+}
+
+.app-shell-fullscreen {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.app-shell-content {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  padding: 96px 24px 28px;
+}
+
+@media (max-width: 768px) {
+  .app-shell-content {
+    padding: 82px 14px 20px;
+  }
+}

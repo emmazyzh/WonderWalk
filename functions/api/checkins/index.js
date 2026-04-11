@@ -19,7 +19,16 @@ export async function onRequestPost({ request, env, data }) {
     await ensureUser(env.DB, { userId, email })
 
     const body = await request.json()
-    const { type, code, name_zh, name_en } = body
+    const {
+      type,
+      code,
+      name_zh,
+      name_en,
+      created_at,
+      province_code,
+      province_name,
+      city_name,
+    } = body
 
     if (!type || !code || !name_zh) {
       return err('Missing required fields: type, code, name_zh')
@@ -28,7 +37,16 @@ export async function onRequestPost({ request, env, data }) {
       return err('Invalid type')
     }
 
-    const checkin = await createCheckin(env.DB, userId, { type, code, name_zh, name_en })
+    const checkin = await createCheckin(env.DB, userId, {
+      type,
+      code,
+      name_zh,
+      name_en,
+      created_at,
+      province_code,
+      province_name,
+      city_name,
+    })
     return created({ checkin })
   } catch (e) {
     return serverError(e)

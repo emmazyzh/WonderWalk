@@ -2,7 +2,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'wonderwalk'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let _db = null
 
@@ -14,6 +14,11 @@ async function getDB() {
         const store = db.createObjectStore('checkins', { keyPath: 'id' })
         store.createIndex('by_user', 'user_id')
         store.createIndex('by_type', 'type')
+      }
+      if (!db.objectStoreNames.contains('sync_queue')) {
+        const store = db.createObjectStore('sync_queue', { keyPath: 'id' })
+        store.createIndex('by_kind', 'kind')
+        store.createIndex('by_created_at', 'created_at')
       }
       if (!db.objectStoreNames.contains('user')) {
         db.createObjectStore('user', { keyPath: 'id' })
@@ -41,6 +46,26 @@ export async function deleteCheckin(id) {
 export async function clearCheckins() {
   const db = await getDB()
   return db.clear('checkins')
+}
+
+export async function getSyncQueue() {
+  const db = await getDB()
+  return db.getAll('sync_queue')
+}
+
+export async function saveSyncQueueItem(item) {
+  const db = await getDB()
+  return db.put('sync_queue', item)
+}
+
+export async function deleteSyncQueueItem(id) {
+  const db = await getDB()
+  return db.delete('sync_queue', id)
+}
+
+export async function clearSyncQueue() {
+  const db = await getDB()
+  return db.clear('sync_queue')
 }
 
 export async function getUser() {

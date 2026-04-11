@@ -41,6 +41,12 @@
   pointer-events: none;
 }
 
+.stats-checkin-btn {
+  margin-top: 14px;
+  width: 100%;
+  height: 44px;
+}
+
 .stats-card-head {
   display: flex;
   align-items: center;

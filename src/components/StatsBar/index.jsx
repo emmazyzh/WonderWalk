@@ -1,8 +1,9 @@
 // src/components/StatsBar/index.jsx
+import { Button } from 'antd'
 import useCheckinStore from '../../store/useCheckinStore'
 import './StatsBar.css'
 
-export default function StatsBar() {
+export default function StatsBar({ onCheckinRequest }) {
   const { mapMode, getStatsCount } = useCheckinStore()
   const stats = getStatsCount()
   const provinceCount = stats.china
@@ -42,6 +43,13 @@ export default function StatsBar() {
             </div>
           </>
         )}
+        <Button
+          type="primary"
+          className="stats-checkin-btn"
+          onClick={() => onCheckinRequest?.()}
+        >
+          去打卡
+        </Button>
       </div>
     </div>
   )

@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS checkins (
   code TEXT NOT NULL,
   name_zh TEXT NOT NULL,
   name_en TEXT,
+  province_code TEXT,
+  province_name TEXT,
+  city_name TEXT,
   created_at INTEGER DEFAULT (unixepoch() * 1000),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

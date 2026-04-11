@@ -7,6 +7,13 @@
     linear-gradient(135deg, rgba(239, 246, 255, 0.88), rgba(253, 244, 255, 0.82)) !important;
 }
 
+.checkin-modal-content--world {
+  background:
+    radial-gradient(circle at top left, rgba(191, 219, 254, 0.48), transparent 34%),
+    radial-gradient(circle at top right, rgba(244, 114, 182, 0.18), transparent 30%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.995), rgba(255, 255, 255, 0.985)) !important;
+}
+
 .checkin-modal-content .ant-modal-body {
   padding: 0 !important;
 }
@@ -37,6 +44,24 @@
   box-shadow: 0 12px 32px rgba(37, 99, 235, 0.14);
 }
 
+.checkin-modal-header--world {
+  padding: 28px 28px 12px;
+  margin: 0;
+  border-bottom: none;
+  background: transparent;
+}
+
+.checkin-modal-icon--world {
+  width: auto;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-primary);
+  font-size: 24px;
+}
+
 .checkin-modal-copy {
   min-width: 0;
 }
@@ -64,6 +89,15 @@
 .checkin-results--china {
   padding: 0;
   overflow: hidden;
+}
+
+.checkin-results--world {
+  padding: 4px 28px 24px;
+}
+
+.world-search-wrap {
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .province-map-shell {
@@ -156,45 +190,8 @@
   fill: var(--color-accent);
 }
 
-.province-detail-check-icon circle {
-  fill: var(--color-primary);
-  stroke: rgba(255, 255, 255, 0.92);
-  stroke-width: 1.8px;
-  filter: drop-shadow(0 3px 6px rgba(37, 99, 235, 0.18));
-}
-
-.province-detail-check-icon path {
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 2.2px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.selected-province-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
-  margin-bottom: 14px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgba(219, 234, 254, 0.64), rgba(244, 114, 182, 0.12));
-  border: 1px solid rgba(191, 219, 254, 0.9);
-}
-
-.selected-province-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.selected-province-name {
-  font-family: var(--font-heading);
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--text-primary);
+.china-mode-shell {
+  position: relative;
 }
 
 .province-inline-select {
@@ -215,10 +212,35 @@
   color: var(--text-primary);
 }
 
-.selected-province-meta {
+.china-mode-toolbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.china-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(191, 219, 254, 0.92);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-secondary);
+  cursor: pointer;
   font-size: 13px;
   font-weight: 800;
-  color: var(--color-primary);
+}
+
+.china-view-toggle-btn span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .city-tag-grid {
@@ -229,9 +251,9 @@
 
 .city-tag {
   position: relative;
-  min-width: 120px;
-  padding: 14px 16px;
-  border-radius: 20px;
+  min-width: 96px;
+  padding: 10px 12px;
+  border-radius: 16px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   background: rgba(255, 255, 255, 0.88);
   cursor: pointer;
@@ -259,7 +281,7 @@
 .city-tag-name {
   display: block;
   font-family: var(--font-heading);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--text-primary);
 }
@@ -304,32 +326,243 @@
 }
 
 .selected-world-panel {
-  margin-bottom: 12px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(244, 114, 182, 0.08));
-  border: 1px solid rgba(191, 219, 254, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(244, 114, 182, 0.08));
+  border: 1px solid rgba(191, 219, 254, 0.92);
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.08);
+}
+
+.selected-world-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
 }
 
 .selected-world-title {
   font-family: var(--font-heading);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 900;
   color: var(--text-primary);
 }
 
 .selected-world-subtitle {
-  margin-top: 4px;
   font-size: 13px;
   color: var(--text-muted);
 }
 
-.checkin-result-item {
-  width: 100%;
+.selected-world-history-title {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.world-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.world-history-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(191, 219, 254, 0.7);
+}
+
+.world-history-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.world-history-date {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.world-history-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.world-history-badge--existing {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--color-primary);
+}
+
+.world-history-badge--modified {
+  background: rgba(236, 72, 153, 0.12);
+  color: var(--color-accent);
+}
+
+.world-history-badge--new {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--color-success);
+}
+
+.world-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.world-history-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.world-history-icon-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(37, 99, 235, 0.16);
+}
+
+.world-history-icon-btn--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+}
+
+.world-history-icon-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.world-history-picker {
+  width: 132px;
+}
+
+.world-history-add-row {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.world-history-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.china-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 72px;
+  max-height: 64vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.china-history-item {
+  cursor: pointer;
+}
+
+.china-history-item--active {
+  border-color: rgba(236, 72, 153, 0.48);
+  box-shadow: 0 14px 30px rgba(236, 72, 153, 0.12);
+}
+
+.china-history-city {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.china-city-tag-grid {
+  margin-top: 4px;
+}
+
+.china-city-tag-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  min-height: 72px;
+}
+
+.china-map-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px 0;
+}
+
+.china-map-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.china-map-legend-dot {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border-radius: 999px;
+}
+
+.china-map-legend-dot--blue {
+  background: #bfdbfe;
+  border: 1px solid #60a5fa;
+}
+
+.china-map-legend-dot--pink {
+  background: #fbcfe8;
+  border: 1px solid #ec4899;
+}
+
+.checkin-result-item {
+  width: 100%;
+  min-height: 88px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.84);
@@ -353,11 +586,6 @@
   box-shadow: 0 14px 30px rgba(37, 99, 235, 0.14);
 }
 
-.result-icon {
-  font-size: 18px;
-  color: var(--color-accent);
-}
-
 .result-names {
   flex: 1;
   min-width: 0;
@@ -379,12 +607,19 @@
 }
 
 .result-checkin-btn {
+  align-self: flex-start;
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(37, 99, 235, 0.1);
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 800;
+}
+
+.world-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 12px;
 }
 
 .checkin-modal-footer {
@@ -397,9 +632,50 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(248, 250, 252, 0.96));
 }
 
+.checkin-modal-content--world .checkin-modal-footer {
+  padding: 14px 28px 28px;
+  border-top: 1px solid rgba(226, 232, 240, 0.72);
+  background: transparent;
+}
+
+.checkin-modal-footer--world {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .checkin-modal-footer--china {
   margin: 0 24px;
   padding-top: 14px;
+}
+
+.checkin-month-picker {
+  width: 148px;
+}
+
+.checkin-footer-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.checkin-footer-city {
+  color: var(--color-primary);
+  font-family: var(--font-heading);
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checkin-footer-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .checkin-footer-copy {
@@ -410,7 +686,7 @@
 
 .checkin-footer-copy--china {
   font-size: 16px;
-  color: var(--text-primary);
+  color: var(--text-muted);
 }
 
 .checkin-footer-count {
@@ -443,6 +719,10 @@
     padding: 0;
   }
 
+  .checkin-results--world {
+    padding: 0 18px 18px;
+  }
+
   .province-map-shell,
   .province-map-state {
     min-height: 54vh;
@@ -472,9 +752,32 @@
     font-size: 11px;
   }
 
-  .selected-province-panel {
-    align-items: flex-start;
-    flex-direction: column;
+  .china-view-toggle-btn {
+    height: 30px;
+    padding: 0 8px;
+    justify-content: center;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .china-view-toggle-btn span {
+    font-size: 10px;
+  }
+
+  .china-mode-toolbar {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    gap: 8px;
+  }
+
+  .province-inline-select {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .province-inline-select .ant-select-selection-item {
+    font-size: 16px;
   }
 
   .city-tag-grid {
@@ -487,5 +790,22 @@
 
   .checkin-modal-footer {
     padding: 14px 18px 18px;
+  }
+
+  .checkin-modal-footer--world {
+    gap: 12px;
+  }
+
+  .checkin-modal-header--world {
+    padding: 22px 18px 10px;
+  }
+
+  .world-card-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .checkin-result-item {
+    min-height: 78px;
+    padding: 12px;
   }
 }

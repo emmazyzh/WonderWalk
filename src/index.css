@@ -195,6 +195,18 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-card);
 }
 
+.home-world-checkin-btn {
+  position: fixed !important;
+  right: 24px;
+  top: 88px;
+  z-index: 120;
+  height: 48px !important;
+  padding: 0 22px !important;
+  border: none !important;
+  background: linear-gradient(135deg, #2563eb, #ec4899) !important;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
+}
+
 /* ---- Checkin pin bounce ---- */
 @keyframes pinBounce {
   0% { transform: translateY(-20px) scale(0.5); opacity: 0; }

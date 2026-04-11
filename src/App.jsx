@@ -1,8 +1,11 @@
 // src/App.jsx
 import { ConfigProvider, theme } from 'antd'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
 import zhCN from 'antd/locale/zh_CN'
 import Home from './pages/Home'
+import Footprints from './pages/Footprints'
+import Settings from './pages/Settings'
 
 const antdTheme = {
   algorithm: theme.defaultAlgorithm,
@@ -51,10 +54,23 @@ export default function App() {
     <ConfigProvider theme={antdTheme} locale={zhCN}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/footprints" element={<ProtectedRoute><Footprints /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>
+  )
+}
+
+function ProtectedRoute({ children }) {
+  return (
+    <>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+      <SignedIn>{children}</SignedIn>
+    </>
   )
 }
