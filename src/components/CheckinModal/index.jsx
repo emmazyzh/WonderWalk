@@ -685,10 +685,10 @@ export default function CheckinModal({ open, onClose, prefill }) {
             || regionMap.get(String(item.code))
             || regions.find((entry) => normalizeRegionName(entry.shortName) === normalizeRegionName(item.city_name || ''))
             || {
-              code: wholeRegion?.code || item.code,
-              shortName: wholeRegion?.shortName || item.city_name || item.name_en,
-              displayName: wholeRegion?.displayName || item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
-            }
+            code: wholeRegion?.code || item.code,
+            shortName: wholeRegion?.shortName || item.city_name || item.name_en,
+            displayName: wholeRegion?.displayName || item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
+          }
           return createChinaDraftEntry({
             id: item.id,
             createdAt: Number(item.created_at),
@@ -926,10 +926,10 @@ export default function CheckinModal({ open, onClose, prefill }) {
           || regionMap.get(String(item.code))
           || provinceRegions.find((entry) => normalizeRegionName(entry.shortName) === normalizeRegionName(item.city_name || ''))
           || {
-            code: wholeRegion?.code || item.code,
-            shortName: wholeRegion?.shortName || item.city_name || item.name_en,
-            displayName: wholeRegion?.displayName || item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
-          }
+          code: wholeRegion?.code || item.code,
+          shortName: wholeRegion?.shortName || item.city_name || item.name_en,
+          displayName: wholeRegion?.displayName || item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
+        }
 
         return createChinaDraftEntry({
           id: item.id,
@@ -1735,7 +1735,7 @@ export default function CheckinModal({ open, onClose, prefill }) {
                     onClick={handleWorldDraftAdd}
                   >
                     <PlusOutlined />
-                    <span>新增一条打卡</span>
+                    <span>再加一条打卡记录</span>
                   </button>
                 </div>
               </div>

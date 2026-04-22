@@ -7,10 +7,10 @@ import './SideMenu.css'
 
 export default function SideMenu({ open, onClose }) {
   const { getStatsCount, setMapMode } = useCheckinStore()
-  const { user } = useUser()
+  const { isSignedIn, user } = useUser()
   const navigate = useNavigate()
   const location = useLocation()
-  const stats = getStatsCount()
+  const stats = isSignedIn ? getStatsCount() : { chinaCities: 0, world: 0 }
 
   const menuItems = [
     { key: '/', label: '首页', icon: <HomeOutlined /> },
@@ -43,8 +43,8 @@ export default function SideMenu({ open, onClose }) {
             className="side-menu-avatar"
           />
           <div className="side-menu-user-info">
-            <div className="side-menu-nickname">{user?.firstName || '旅行家'}</div>
-            <div className="side-menu-email">{user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ''}</div>
+            <div className="side-menu-nickname">{isSignedIn ? (user?.firstName || '旅行家') : '旅行家'}</div>
+            <div className="side-menu-email">{isSignedIn ? (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '') : '登录后同步你的足迹'}</div>
           </div>
         </div>
         <div className="side-menu-user-info">

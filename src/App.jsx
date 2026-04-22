@@ -1,11 +1,12 @@
 // src/App.jsx
 import { ConfigProvider, theme } from 'antd'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
+import { SignedIn, SignedOut } from '@clerk/clerk-react'
 import zhCN from 'antd/locale/zh_CN'
 import Home from './pages/Home'
 import Footprints from './pages/Footprints'
 import Settings from './pages/Settings'
+import AuthPage from './pages/AuthPage'
 
 const antdTheme = {
   algorithm: theme.defaultAlgorithm,
@@ -68,7 +69,7 @@ function ProtectedRoute({ children }) {
   return (
     <>
       <SignedOut>
-        <RedirectToSignIn />
+        <AuthPage />
       </SignedOut>
       <SignedIn>{children}</SignedIn>
     </>
