@@ -5,7 +5,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 're
 import { geoCentroid } from 'd3-geo'
 import { feature } from 'topojson-client'
 import useCheckinStore from '../../store/useCheckinStore'
-import { getWorldCountryByCode, getWorldCountryNameZh } from '../../data/worldCountries'
+import { getWorldCountryByCode, getWorldCountryCodeByName, getWorldCountryNameZh } from '../../data/worldCountries'
 import { getChinaCityCoordinate } from '../../data/chinaCities'
 import './MapView.css'
 
@@ -18,6 +18,53 @@ const WORLD_DEFAULT_VIEWPORT = { center: [0, 7], zoom: 1 }
 const WORLD_MIN_ZOOM = 0.85
 const WORLD_MAX_ZOOM = 6
 const WORLD_ZOOM_STEP = 0.15
+const WORLD_NUMERIC_TO_ALPHA3 = {
+  36: 'AUS',
+  40: 'AUT',
+  56: 'BEL',
+  124: 'CAN',
+  144: 'LKA',
+  158: 'CHN',
+  156: 'CHN',
+  208: 'DNK',
+  250: 'FRA',
+  276: 'DEU',
+  300: 'GRC',
+  344: 'CHN',
+  356: 'IND',
+  352: 'ISL',
+  360: 'IDN',
+  380: 'ITA',
+  392: 'JPN',
+  410: 'KOR',
+  446: 'CHN',
+  458: 'MYS',
+  528: 'NLD',
+  554: 'NZL',
+  578: 'NOR',
+  620: 'PRT',
+  643: 'RUS',
+  702: 'SGP',
+  710: 'ZAF',
+  724: 'ESP',
+  752: 'SWE',
+  756: 'CHE',
+  764: 'THA',
+  792: 'TUR',
+  784: 'ARE',
+  818: 'EGY',
+  826: 'GBR',
+  840: 'USA',
+  704: 'VNM',
+  608: 'PHL',
+  616: 'POL',
+}
+const WORLD_MARKER_COORDINATE_OVERRIDES = {
+  // Nudge dense East Asia markers apart so pins remain individually visible.
+  SGP: [104.55, 1.0],
+  HKG: [114.85, 22.55],
+  MAC: [113.25, 21.82],
+}
 // Country/province name mapping for world map
 const getFeatureName = (geo, language) => {
   const chinaName = geo.properties?.name || geo.properties?.province || geo.properties?.fullName
@@ -30,10 +77,30 @@ const getFeatureName = (geo, language) => {
 
 const getFeatureCode = (geo, mapMode) => {
   if (mapMode === 'world') {
-    return geo.properties?.ISO_A3 || geo.properties?.iso_a3 || geo.properties?.ADM0_A3 || geo.id
+    const alphaCode = geo.properties?.ISO_A3 || geo.properties?.iso_a3 || geo.properties?.ADM0_A3
+    if (typeof alphaCode === 'string' && /^[A-Z]{3}$/.test(alphaCode)) return alphaCode
+
+    const numericCode = String(geo.id || '').replace(/^0+/, '')
+    if (WORLD_NUMERIC_TO_ALPHA3[numericCode]) return WORLD_NUMERIC_TO_ALPHA3[numericCode]
+
+    const byName = getWorldCountryCodeByName(geo.properties?.name || '')
+    if (byName) return byName
+
+    return String(geo.id || '')
   }
   // China: use province name as code
   return geo.properties?.adcode?.toString() || geo.properties?.name || geo.id
+}
+
+const normalizeWorldCode = (value = '') => {
+  const code = String(value || '').toUpperCase()
+  if (code === 'TWN' || code === 'HKG' || code === 'MAC') return 'CHN'
+  if (/^[A-Z]{3}$/.test(code)) return code
+
+  const numericCode = code.replace(/^0+/, '')
+  if (WORLD_NUMERIC_TO_ALPHA3[numericCode]) return WORLD_NUMERIC_TO_ALPHA3[numericCode]
+
+  return getWorldCountryCodeByName(String(value || '')) || ''
 }
 
 const isRenderableFeature = (geo, mapMode) => {
@@ -164,7 +231,7 @@ const getChinaCityName = (checkin) => {
 }
 
 const getWorldCountryMeta = (geo) => {
-  const code = geo.properties?.ISO_A3 || geo.properties?.iso_a3 || geo.properties?.ADM0_A3 || geo.id
+  const code = getFeatureCode(geo, 'world')
   return getWorldCountryByCode(code)
 }
 
@@ -208,11 +275,11 @@ export default function MapView({ onCheckinRequest }) {
   const [tooltipCheckins, setTooltipCheckins] = useState([])
   const [tooltipCities, setTooltipCities] = useState([])
   const [tooltipVariant, setTooltipVariant] = useState('province')
+  const [hoveredWorldCode, setHoveredWorldCode] = useState('')
   const tooltipRef = useRef(null)
   const [geoData, setGeoData] = useState(null)
   const [chinaZoomLevel, setChinaZoomLevel] = useState(3)
   const [worldViewport, setWorldViewport] = useState(WORLD_DEFAULT_VIEWPORT)
-  const checkedCodes = getCheckedCodes()
   const chinaProvinceCheckins = useMemo(
     () => checkins.filter((item) => item.type === 'china_city'),
     [checkins]
@@ -221,6 +288,21 @@ export default function MapView({ onCheckinRequest }) {
     () => checkins.filter((item) => item.type === 'world_country'),
     [checkins]
   )
+  const worldCheckinsByCode = useMemo(() => (
+    worldCountryCheckins.reduce((acc, item) => {
+      const normalizedCode = normalizeWorldCode(item.code)
+        || normalizeWorldCode(item.name_en)
+        || normalizeWorldCode(item.name_zh)
+      if (!normalizedCode) return acc
+      if (!acc[normalizedCode]) acc[normalizedCode] = []
+      acc[normalizedCode].push(item)
+      return acc
+    }, {})
+  ), [worldCountryCheckins])
+  const checkedCodes = useMemo(() => {
+    if (mapMode === 'china') return getCheckedCodes()
+    return new Set(Object.keys(worldCheckinsByCode))
+  }, [getCheckedCodes, mapMode, worldCheckinsByCode])
 
   const geoUrl = mapMode === 'china' ? CHINA_GEO : WORLD_GEO
 
@@ -259,7 +341,12 @@ export default function MapView({ onCheckinRequest }) {
 
   const handleMouseEnter = (geo) => {
     const code = getFeatureCode(geo, mapMode)
-    const checkins = getCheckinsByCode(code, mapMode)
+    if (mapMode === 'world') {
+      setHoveredWorldCode(code)
+    }
+    const checkins = mapMode === 'world'
+      ? (worldCheckinsByCode[code] || [])
+      : getCheckinsByCode(code, mapMode)
     const cityTags = [...new Set(checkins.map((item) => getChinaCityName(item)).filter(Boolean))]
     if (mapMode === 'world') {
       const worldMeta = getWorldCountryMeta(geo)
@@ -285,6 +372,7 @@ export default function MapView({ onCheckinRequest }) {
   }, [])
 
   const handleMouseLeave = () => {
+    setHoveredWorldCode('')
     setShowTooltip(false)
     setTooltipCheckins([])
     setTooltipCities([])
@@ -346,18 +434,23 @@ export default function MapView({ onCheckinRequest }) {
     if (mapMode !== 'world') return []
 
     const grouped = worldCountryCheckins.reduce((acc, item) => {
-      if (!acc[item.code]) acc[item.code] = []
-      acc[item.code].push(item)
+      const normalizedCode = normalizeWorldCode(item.code)
+        || normalizeWorldCode(item.name_en)
+        || normalizeWorldCode(item.name_zh)
+      if (!normalizedCode) return acc
+      if (!acc[normalizedCode]) acc[normalizedCode] = []
+      acc[normalizedCode].push(item)
       return acc
     }, {})
 
     return Object.entries(grouped)
       .map(([code, items]) => {
         const meta = worldFeatureMeta[code]
-        if (!meta?.center) return null
+        const coordinates = meta?.center || WORLD_MARKER_COORDINATE_OVERRIDES[code]
+        if (!coordinates) return null
         return {
           code,
-          coordinates: meta.center,
+          coordinates,
           checkins: items,
           title: items[0]?.name_en || items[0]?.name_zh || code,
           subtitle: items[0]?.name_zh || '',
@@ -485,30 +578,32 @@ export default function MapView({ onCheckinRequest }) {
                   .map((geo, index) => {
                     const code = getFeatureCode(geo, mapMode)
                     const isVisited = checkedCodes.has(code)
+                    const isGroupedHovered = mapMode === 'world' && hoveredWorldCode === code
                     const visitCount = provinceVisitCounts[code] || 0
                     const fillColor = mapMode === 'china'
                       ? getProvinceFill(visitCount, maxProvinceCount)
                       : (isVisited ? CONTINENT_COLORS[worldFeatureMeta[code]?.continent || 'default'] : '#D1D5DB')
+                    const hoverFillColor = mapMode === 'china'
+                      ? (visitCount ? getProvinceFill(visitCount, Math.max(maxProvinceCount, 1)) : '#C7D0DB')
+                      : (isVisited ? CONTINENT_COLORS[worldFeatureMeta[code]?.continent || 'default'] : '#C7D0DB')
 
                     return (
                       <Geography
                         key={geo.rsmKey || index}
                         geography={geo}
-                        className={`map-geo ${isVisited ? 'map-geo--visited' : ''}`}
+                        className={`map-geo ${isVisited ? 'map-geo--visited' : ''} ${isGroupedHovered ? 'map-geo--hovered' : ''}`}
                         onMouseEnter={() => handleMouseEnter(geo)}
                         onMouseLeave={handleMouseLeave}
                         onClick={() => handleClick(geo)}
                         style={{
                           default: {
-                            fill: fillColor,
+                            fill: isGroupedHovered ? hoverFillColor : fillColor,
                             stroke: '#ffffff',
-                            strokeWidth: mapMode === 'china' ? 0.8 : 0.5,
+                            strokeWidth: mapMode === 'china' ? 0.8 : (isGroupedHovered ? 0.6 : 0.5),
                             outline: 'none',
                           },
                           hover: {
-                            fill: mapMode === 'china'
-                              ? (visitCount ? getProvinceFill(visitCount, Math.max(maxProvinceCount, 1)) : '#C7D0DB')
-                              : (isVisited ? CONTINENT_COLORS[worldFeatureMeta[code]?.continent || 'default'] : '#C7D0DB'),
+                            fill: hoverFillColor,
                             stroke: '#ffffff',
                             strokeWidth: mapMode === 'china' ? 0.9 : 0.6,
                             outline: 'none',
@@ -546,6 +641,14 @@ export default function MapView({ onCheckinRequest }) {
                   }
                 }}
                 onMouseLeave={handleMouseLeave}
+                onClick={() => {
+                  onCheckinRequest?.({
+                    code: String(getChinaProvinceCode(marker.checkins[0]) || ''),
+                    name: marker.provinceName,
+                    nameEn: marker.provinceName,
+                    mapMode: 'china',
+                  })
+                }}
               >
                 <path d="M0 -4.5 C2 -4.5 3.6 -3 3.6 -1 C3.6 1.4 1 3.4 0 5.6 C-1 3.4 -3.6 1.4 -3.6 -1 C-3.6 -3 -2 -4.5 0 -4.5 Z" className="city-marker-pin" />
                 <circle cx="0" cy="-1.2" r="1.45" className="city-marker-dot" />
@@ -569,6 +672,14 @@ export default function MapView({ onCheckinRequest }) {
                   }
                 }}
                 onMouseLeave={handleMouseLeave}
+                onClick={() => {
+                  onCheckinRequest?.({
+                    code: marker.code,
+                    name: getWorldCountryNameZh(marker.code, marker.title) || marker.subtitle || marker.title,
+                    nameEn: marker.title,
+                    mapMode: 'world',
+                  })
+                }}
               >
                 <path d="M0 -4.5 C2 -4.5 3.6 -3 3.6 -1 C3.6 1.4 1 3.4 0 5.6 C-1 3.4 -3.6 1.4 -3.6 -1 C-3.6 -3 -2 -4.5 0 -4.5 Z" className="city-marker-pin" />
                 <circle cx="0" cy="-1.2" r="1.45" className="city-marker-dot" />

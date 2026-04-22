@@ -3,7 +3,6 @@ import dayjs from 'dayjs'
 import { Modal, message, Spin, Empty, Button, Input, DatePicker, Popconfirm, Select, Tooltip } from 'antd'
 import {
   AimOutlined,
-  AppstoreOutlined,
   BulbOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -11,7 +10,6 @@ import {
   MinusOutlined,
   PlusOutlined,
   SearchOutlined,
-  UnorderedListOutlined,
 } from '@ant-design/icons'
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps'
 import { geoCentroid, geoMercator } from 'd3-geo'
@@ -19,7 +17,7 @@ import ReactConfetti from 'react-confetti'
 import { useAuth } from '@clerk/clerk-react'
 import useCheckinStore from '../../store/useCheckinStore'
 import { CHINA_PROVINCES } from '../../data/chinaCities'
-import { WORLD_COUNTRIES_LIST, getWorldCountryByCode, getWorldCountryNameZh } from '../../data/worldCountries'
+import { WORLD_COUNTRIES_LIST, getWorldCountryByCode, getWorldCountryCodeByName, getWorldCountryNameZh } from '../../data/worldCountries'
 import './CheckinModal.css'
 
 const WORLD_GEO = '/data/world-110m.json'
@@ -35,6 +33,48 @@ const CHINA_ZOOM_LEVELS = [0.85, 1, 1.2, 1.5, 1.8, 2.1]
 const PROVINCE_MIN_ZOOM = CHINA_ZOOM_LEVELS[0]
 const PROVINCE_MAX_ZOOM = CHINA_ZOOM_LEVELS[CHINA_ZOOM_LEVELS.length - 1]
 const PROVINCE_DEFAULT_ZOOM = CHINA_ZOOM_LEVELS[1]
+const WHOLE_PROVINCE_SELECTION_CODES = new Set(['110000', '120000', '310000', '500000', '710000', '810000', '820000'])
+const WORLD_NUMERIC_TO_ALPHA3 = {
+  36: 'AUS',
+  40: 'AUT',
+  56: 'BEL',
+  124: 'CAN',
+  144: 'LKA',
+  158: 'CHN',
+  156: 'CHN',
+  208: 'DNK',
+  250: 'FRA',
+  276: 'DEU',
+  300: 'GRC',
+  344: 'CHN',
+  352: 'ISL',
+  356: 'IND',
+  360: 'IDN',
+  380: 'ITA',
+  392: 'JPN',
+  410: 'KOR',
+  446: 'CHN',
+  458: 'MYS',
+  528: 'NLD',
+  554: 'NZL',
+  578: 'NOR',
+  608: 'PHL',
+  616: 'POL',
+  620: 'PRT',
+  643: 'RUS',
+  702: 'SGP',
+  704: 'VNM',
+  710: 'ZAF',
+  724: 'ESP',
+  752: 'SWE',
+  756: 'CHE',
+  764: 'THA',
+  784: 'ARE',
+  792: 'TUR',
+  818: 'EGY',
+  826: 'GBR',
+  840: 'USA',
+}
 
 const dataCache = {}
 const provinceGeoCache = {}
@@ -99,7 +139,15 @@ function getSearchData(mapMode) {
 
 function normalizeWorldSelection(item) {
   if (!item) return null
-  const code = item.code || ''
+  const rawCode = String(item.code || '').toUpperCase()
+  const numericCode = rawCode.replace(/^0+/, '')
+  const code = (
+    (rawCode === 'TWN' || rawCode === 'HKG' || rawCode === 'MAC' ? 'CHN' : '')
+    || (/^[A-Z]{3}$/.test(rawCode) ? rawCode : '')
+    || WORLD_NUMERIC_TO_ALPHA3[numericCode]
+    || getWorldCountryCodeByName(item.nameEn || item.name_en || item.name || item.name_zh || '')
+    || rawCode
+  )
   const nameEn = item.nameEn || item.name_en || ''
   return {
     ...item,
@@ -107,6 +155,11 @@ function normalizeWorldSelection(item) {
     nameEn,
     name: item.name || item.name_zh || getWorldCountryNameZh(code, nameEn) || nameEn,
   }
+}
+
+function getNormalizedWorldCode(item) {
+  if (!item) return ''
+  return normalizeWorldSelection(item)?.code || ''
 }
 
 function mergeWorldCountryOptions(baseCountries, geoCountries) {
@@ -158,6 +211,13 @@ function getRegionDisplayName(feature) {
 function getRegionShortName(name) {
   if (!name) return ''
   if (CHINA_DIVISION_ALIASES[name]) return CHINA_DIVISION_ALIASES[name]
+  if (name.endsWith('特别行政区')) return name.slice(0, -5)
+  if (name.endsWith('自治区')) return name.slice(0, -3)
+  if (name.endsWith('自治州')) return name.slice(0, -3)
+  if (name.endsWith('自治县')) return name.slice(0, -3)
+  if (name.endsWith('自治旗')) return name.slice(0, -3)
+  if (name.endsWith('地区')) return name.slice(0, -2)
+  if (name.endsWith('盟')) return name.slice(0, -1)
   if (name.endsWith('市')) return name.slice(0, -1)
   return name
 }
@@ -319,16 +379,30 @@ function createChinaDraftEntry({ id = null, createdAt, region, status = null }) 
   }
 }
 
+function createWholeProvinceRegion(provinceCode, provinceName, geoData) {
+  const displayName = provinceName || provinceCode
+  const shortName = getRegionShortName(displayName)
+  return {
+    feature: geoData,
+    code: String(provinceCode),
+    displayName,
+    shortName,
+    centroid: geoData ? geoCentroid(geoData) : [104, 35],
+  }
+}
+
 export default function CheckinModal({ open, onClose, prefill }) {
   const { addCheckin, removeCheckin, updateCheckinTime, mapMode, checkins } = useCheckinStore()
   const { getToken } = useAuth()
   const [showConfetti, setShowConfetti] = useState(false)
+  const [isChinaSubmitting, setIsChinaSubmitting] = useState(false)
   const [selectedProvinceCode, setSelectedProvinceCode] = useState('')
-  const [chinaViewMode, setChinaViewMode] = useState('map')
   const [activeChinaCityCode, setActiveChinaCityCode] = useState('')
+  const [hoveredChinaCityCode, setHoveredChinaCityCode] = useState('')
   const [chinaDraftsByProvince, setChinaDraftsByProvince] = useState({})
   const [activeChinaPicker, setActiveChinaPicker] = useState(null)
   const [worldQuery, setWorldQuery] = useState('')
+  const [showWorldResults, setShowWorldResults] = useState(false)
   const [selectedWorld, setSelectedWorld] = useState(null)
   const [worldCountries, setWorldCountries] = useState(WORLD_COUNTRIES_LIST)
   const [worldDraftsByCode, setWorldDraftsByCode] = useState({})
@@ -344,9 +418,19 @@ export default function CheckinModal({ open, onClose, prefill }) {
     [mapMode, searchData, worldCountries]
   )
   const activeProvinceGeoData = provinceGeoData || provinceGeoCache[selectedProvinceCode] || null
+  const worldCheckinsByCode = useMemo(() => (
+    checkins.reduce((acc, item) => {
+      if (item.type !== 'world_country') return acc
+      const normalizedCode = getNormalizedWorldCode(item)
+      if (!normalizedCode) return acc
+      if (!acc[normalizedCode]) acc[normalizedCode] = []
+      acc[normalizedCode].push(item)
+      return acc
+    }, {})
+  ), [checkins])
   const checkedWorldCodes = useMemo(
-    () => new Set(checkins.filter((c) => c.type === 'world_country').map((c) => c.code)),
-    [checkins]
+    () => new Set(Object.keys(worldCheckinsByCode)),
+    [worldCheckinsByCode]
   )
 
   const selectedProvince = useMemo(
@@ -357,12 +441,11 @@ export default function CheckinModal({ open, onClose, prefill }) {
   const selectedWorldCheckins = useMemo(
     () => (
       selectedWorld
-        ? checkins
-          .filter((item) => item.type === 'world_country' && item.code === selectedWorld.code)
+        ? (worldCheckinsByCode[selectedWorld.code] || [])
           .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))
         : []
     ),
-    [checkins, selectedWorld]
+    [selectedWorld, worldCheckinsByCode]
   )
 
   const currentWorldDrafts = useMemo(
@@ -383,7 +466,10 @@ export default function CheckinModal({ open, onClose, prefill }) {
       .then((data) => {
         const geometries = data.objects?.countries?.geometries || []
         const geoWorldCountries = geometries.map((item) => {
-          const code = String(item.id || '')
+          const code = normalizeWorldSelection({
+            code: String(item.id || ''),
+            nameEn: item.properties?.name || '',
+          })?.code || ''
           const nameEn = item.properties?.name || ''
           const preset = getWorldCountryByCode(code)
           return normalizeWorldSelection({
@@ -454,6 +540,36 @@ export default function CheckinModal({ open, onClose, prefill }) {
   const provinceRegions = useMemo(() => {
     if (mapMode !== 'china' || !activeProvinceGeoData?.features) return []
 
+    const rawRegions = activeProvinceGeoData.features
+      .filter((feature) => Boolean(getRegionDisplayName(feature)))
+      .map((feature, index) => {
+        const displayName = getRegionDisplayName(feature)
+        const shortName = getRegionShortName(displayName)
+        return {
+          feature,
+          code: feature.properties?.adcode?.toString() || `${selectedProvinceCode}-${index + 1}`,
+          displayName,
+          shortName,
+          centroid: getRegionCentroid(feature),
+        }
+      })
+
+    if (WHOLE_PROVINCE_SELECTION_CODES.has(String(selectedProvinceCode))) {
+      return [createWholeProvinceRegion(selectedProvinceCode, selectedProvince?.name, activeProvinceGeoData)]
+    }
+
+    return rawRegions
+  }, [activeProvinceGeoData, mapMode, selectedProvince?.name, selectedProvinceCode])
+
+  const provinceSubdivisionRegions = useMemo(() => {
+    if (
+      mapMode !== 'china'
+      || !activeProvinceGeoData?.features
+      || !WHOLE_PROVINCE_SELECTION_CODES.has(String(selectedProvinceCode))
+    ) {
+      return []
+    }
+
     return activeProvinceGeoData.features
       .filter((feature) => Boolean(getRegionDisplayName(feature)))
       .map((feature, index) => {
@@ -483,23 +599,95 @@ export default function CheckinModal({ open, onClose, prefill }) {
     )
   }, [activeProvinceGeoData])
 
+  const provinceLabelCoordinates = useMemo(() => {
+    if (!provinceProjection?.invert) {
+      return provinceRegions.reduce((acc, region) => {
+        acc[region.code] = region.centroid
+        return acc
+      }, {})
+    }
+
+    const placed = []
+    const coordinates = {}
+    const sortedRegions = [...provinceRegions].sort((a, b) => {
+      const aPoint = Array.isArray(a.centroid) ? provinceProjection(a.centroid) : null
+      const bPoint = Array.isArray(b.centroid) ? provinceProjection(b.centroid) : null
+      if (!aPoint || !bPoint) return 0
+      return aPoint[1] - bPoint[1]
+    })
+
+    sortedRegions.forEach((region) => {
+      if (!Array.isArray(region.centroid) || region.centroid.length !== 2) {
+        coordinates[region.code] = region.centroid
+        return
+      }
+
+      const projected = provinceProjection(region.centroid)
+      if (!Array.isArray(projected) || projected.length !== 2) {
+        coordinates[region.code] = region.centroid
+        return
+      }
+
+      const labelWidth = Math.max(24, region.shortName.length * 13)
+      const labelHeight = region.shortName.length >= 4 ? 14 : 16
+      const candidateOffsets = [
+        [0, 0],
+        [0, -16],
+        [0, 16],
+        [-18, 0],
+        [18, 0],
+        [-22, -12],
+        [22, -12],
+        [-22, 12],
+        [22, 12],
+        [0, -28],
+        [0, 28],
+      ]
+
+      let chosen = projected
+
+      for (const [dx, dy] of candidateOffsets) {
+        const candidate = [projected[0] + dx, projected[1] + dy]
+        const overlaps = placed.some((entry) => (
+          Math.abs(entry.x - candidate[0]) < ((entry.width + labelWidth) / 2) &&
+          Math.abs(entry.y - candidate[1]) < ((entry.height + labelHeight) / 2)
+        ))
+
+        if (!overlaps) {
+          chosen = candidate
+          break
+        }
+      }
+
+      coordinates[region.code] = provinceProjection.invert(chosen) || region.centroid
+      placed.push({ x: chosen[0], y: chosen[1], width: labelWidth, height: labelHeight })
+    })
+
+    return coordinates
+  }, [provinceProjection, provinceRegions])
+
   const initializeChinaDrafts = useCallback((provinceCode, regions = []) => {
     if (!provinceCode) return
 
     setChinaDraftsByProvince((current) => {
       if (current[provinceCode]) return current
 
+      const isWholeProvinceSelection = WHOLE_PROVINCE_SELECTION_CODES.has(String(provinceCode))
+      const wholeRegion = isWholeProvinceSelection
+        ? createWholeProvinceRegion(provinceCode, provinces.find((province) => province.code === provinceCode)?.name, activeProvinceGeoData || provinceGeoCache[provinceCode] || null)
+        : null
       const regionMap = new Map(regions.map((region) => [String(region.code), region]))
       const drafts = checkins
         .filter((item) => item.type === 'china_city' && getChinaProvinceCode(item) === provinceCode)
         .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))
         .map((item) => {
-          const region = regionMap.get(String(item.code))
+          const region = wholeRegion
+            || regionMap.get(String(item.code))
             || regions.find((entry) => normalizeRegionName(entry.shortName) === normalizeRegionName(item.city_name || ''))
             || {
-              code: item.code,
-              shortName: item.city_name || item.name_en,
-              displayName: item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
+              code: wholeRegion?.code || item.code,
+              shortName: wholeRegion?.shortName || item.city_name || item.name_en,
+              displayName: wholeRegion?.displayName || item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
             }
           return createChinaDraftEntry({
             id: item.id,
@@ -513,7 +701,7 @@ export default function CheckinModal({ open, onClose, prefill }) {
         [provinceCode]: drafts,
       }
     })
-  }, [checkins])
+  }, [activeProvinceGeoData, checkins, provinces])
 
   useEffect(() => {
     if (mapMode !== 'china' || !open) return
@@ -559,19 +747,44 @@ export default function CheckinModal({ open, onClose, prefill }) {
     return { anyByCode, anyByName }
   }, [checkins, selectedProvinceCode])
 
-  const isChinaRegionSelected = (regionCode) => (
-    activeChinaCityCode === String(regionCode)
-  )
+  const deletedChinaRegionLookup = useMemo(() => {
+    const anyByCode = new Set()
+    const anyByName = new Set()
 
-  const hasChinaDraftForRegion = (regionCode) => (
-    currentChinaDrafts.some((draft) => draft.code === String(regionCode) && draft.status !== 'deleted')
+    currentChinaDrafts
+      .filter((draft) => draft.status === 'deleted')
+      .forEach((draft) => {
+        if (draft.code) anyByCode.add(String(draft.code))
+
+        const names = [
+          draft.cityName,
+          draft.displayName,
+        ].filter(Boolean)
+
+        names.forEach((name) => {
+          const normalizedName = normalizeRegionName(name)
+          const normalizedShortName = normalizeRegionName(getRegionShortName(name))
+          anyByName.add(normalizedName)
+          anyByName.add(normalizedShortName)
+        })
+      })
+
+    return { anyByCode, anyByName }
+  }, [currentChinaDrafts])
+
+  const isChinaRegionHovered = (regionCode) => (
+    hoveredChinaCityCode === String(regionCode)
   )
 
   const getChinaRegionDraftState = (region) => {
     const regionCode = String(region.code)
     const regionDrafts = currentChinaDrafts.filter((draft) => draft.code === regionCode && draft.status !== 'deleted')
+    const isDeletedRegion = deletedChinaRegionLookup.anyByCode.has(regionCode)
+      || deletedChinaRegionLookup.anyByName.has(normalizeRegionName(region.displayName))
+      || deletedChinaRegionLookup.anyByName.has(normalizeRegionName(region.shortName))
     if (regionDrafts.some((draft) => draft.status === 'new')) return 'new'
     if (regionDrafts.length > 0) return 'existing'
+    if (isDeletedRegion) return 'empty'
     if (checkedChinaRegionLookup.anyByCode.has(regionCode)) return 'existing'
     if (
       checkedChinaRegionLookup.anyByName.has(normalizeRegionName(region.displayName)) ||
@@ -581,6 +794,10 @@ export default function CheckinModal({ open, onClose, prefill }) {
     }
     return 'empty'
   }
+
+  const isChinaRegionSelected = (region) => (
+    activeChinaCityCode === String(region.code) && getChinaRegionDraftState(region) !== 'empty'
+  )
 
   const updateCurrentChinaDrafts = (updater) => {
     if (!selectedProvinceCode) return
@@ -610,17 +827,31 @@ export default function CheckinModal({ open, onClose, prefill }) {
 
     if (!targetRegion) return
 
+    const isWholeProvinceSelection = WHOLE_PROVINCE_SELECTION_CODES.has(String(selectedProvinceCode))
     setActiveChinaCityCode(String(targetRegion.code))
-    updateCurrentChinaDrafts((drafts) => [
-      ...drafts,
-      createChinaDraftEntry({
-        createdAt: dayjs().startOf('month').valueOf(),
-        region: targetRegion,
-      }),
-    ])
+    updateCurrentChinaDrafts((drafts) => {
+      if (isWholeProvinceSelection && drafts.some((draft) => draft.status !== 'deleted')) {
+        return drafts
+      }
+
+      return [
+        ...drafts,
+        createChinaDraftEntry({
+          createdAt: dayjs().startOf('month').valueOf(),
+          region: targetRegion,
+        }),
+      ]
+    })
   }
 
   const handleChinaDraftDelete = (draftId) => {
+    const targetDraft = currentChinaDrafts.find((draft) => draft.draftId === draftId) || null
+    const hasRemainingActiveDraftsForRegion = targetDraft
+      ? currentChinaDrafts.some(
+        (draft) => draft.draftId !== draftId && draft.code === targetDraft.code && draft.status !== 'deleted'
+      )
+      : false
+
     updateCurrentChinaDrafts((drafts) => drafts.flatMap((draft) => {
       if (draft.draftId !== draftId) return [draft]
       if (!draft.sourceId) return []
@@ -630,6 +861,10 @@ export default function CheckinModal({ open, onClose, prefill }) {
       }]
     }))
     setActiveChinaPicker((current) => (current?.draftId === draftId ? null : current))
+    if (targetDraft && !hasRemainingActiveDraftsForRegion) {
+      setActiveChinaCityCode((current) => (current === targetDraft.code ? '' : current))
+      setHoveredChinaCityCode((current) => (current === targetDraft.code ? '' : current))
+    }
   }
 
   const handleChinaDraftMonthChange = (draftId, value) => {
@@ -667,6 +902,10 @@ export default function CheckinModal({ open, onClose, prefill }) {
   const currentChinaVisibleDrafts = useMemo(() => {
     if (!selectedProvinceCode) return []
 
+    const isWholeProvinceSelection = WHOLE_PROVINCE_SELECTION_CODES.has(String(selectedProvinceCode))
+    const wholeRegion = isWholeProvinceSelection
+      ? createWholeProvinceRegion(selectedProvinceCode, selectedProvince?.name, activeProvinceGeoData || provinceGeoCache[selectedProvinceCode] || null)
+      : null
     const deletedSourceIds = new Set(
       currentChinaDrafts
         .filter((draft) => draft.sourceId && draft.status === 'deleted')
@@ -683,12 +922,13 @@ export default function CheckinModal({ open, onClose, prefill }) {
       .filter((item) => !deletedSourceIds.has(item.id))
       .filter((item) => !existingById.has(item.id))
       .map((item) => {
-        const region = regionMap.get(String(item.code))
+        const region = wholeRegion
+          || regionMap.get(String(item.code))
           || provinceRegions.find((entry) => normalizeRegionName(entry.shortName) === normalizeRegionName(item.city_name || ''))
           || {
-            code: item.code,
-            shortName: item.city_name || item.name_en,
-            displayName: item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
+            code: wholeRegion?.code || item.code,
+            shortName: wholeRegion?.shortName || item.city_name || item.name_en,
+            displayName: wholeRegion?.displayName || item.city_name || item.name_zh?.split(' · ').at(-1) || item.name_en || String(item.code),
           }
 
         return createChinaDraftEntry({
@@ -697,7 +937,6 @@ export default function CheckinModal({ open, onClose, prefill }) {
           region,
         })
       })
-
     const allDrafts = [...currentChinaDrafts.filter((draft) => draft.status !== 'deleted'), ...fallbackDrafts]
     const priority = {
       new: 0,
@@ -705,17 +944,30 @@ export default function CheckinModal({ open, onClose, prefill }) {
       existing: 2,
     }
 
-    return allDrafts.sort((a, b) => {
+    const sortedDrafts = allDrafts.sort((a, b) => {
       const priorityDiff = (priority[a.status] ?? 99) - (priority[b.status] ?? 99)
       if (priorityDiff !== 0) return priorityDiff
       return Number(b.createdAt || 0) - Number(a.createdAt || 0)
     })
-  }, [checkins, currentChinaDrafts, provinceRegions, selectedProvinceCode])
+
+    if (isChinaSubmitting) {
+      const localDrafts = [...currentChinaDrafts]
+        .filter((draft) => draft.status !== 'deleted')
+        .sort((a, b) => {
+          const priorityDiff = (priority[a.status] ?? 99) - (priority[b.status] ?? 99)
+          if (priorityDiff !== 0) return priorityDiff
+          return Number(b.createdAt || 0) - Number(a.createdAt || 0)
+        })
+      return localDrafts
+    }
+
+    return sortedDrafts
+  }, [activeProvinceGeoData, checkins, currentChinaDrafts, isChinaSubmitting, provinceRegions, selectedProvince?.name, selectedProvinceCode])
 
   const worldResults = useMemo(() => {
     if (mapMode !== 'world') return []
     const q = worldQuery.trim().toLowerCase()
-    if (!q) return allData.slice(0, 80)
+    if (!q) return []
     return allData.filter((item) =>
       item.name.toLowerCase().includes(q) ||
       item.nameEn.toLowerCase().includes(q)
@@ -737,8 +989,7 @@ export default function CheckinModal({ open, onClose, prefill }) {
 
   const selectWorldCountry = useCallback((item) => {
     const normalizedItem = normalizeWorldSelection(item)
-    const nextDrafts = checkins
-      .filter((entry) => entry.type === 'world_country' && entry.code === normalizedItem.code)
+    const nextDrafts = (worldCheckinsByCode[normalizedItem.code] || [])
       .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))
       .map((entry) => createWorldDraftEntry({
         id: entry.id,
@@ -757,7 +1008,7 @@ export default function CheckinModal({ open, onClose, prefill }) {
           : [createWorldDraftEntry({ createdAt: dayjs().startOf('month').valueOf(), status: 'new' })],
       }
     })
-  }, [checkins])
+  }, [worldCheckinsByCode])
 
   const updateSelectedWorldDrafts = (updater) => {
     if (!selectedWorld) return
@@ -798,6 +1049,9 @@ export default function CheckinModal({ open, onClose, prefill }) {
   useEffect(() => {
     if (!open || mapMode !== 'world') return
     if (worldResults.length === 1) {
+      if (selectedWorld?.code === worldResults[0].code) {
+        return
+      }
       // eslint-disable-next-line react-hooks/set-state-in-effect
       selectWorldCountry(worldResults[0])
       return
@@ -816,8 +1070,42 @@ export default function CheckinModal({ open, onClose, prefill }) {
   }, [mapMode, open, prefill, selectedWorld, selectWorldCountry, worldResults])
 
   const handleChinaRegionToggle = (region) => {
+    const regionCode = String(region.code)
+    const regionState = getChinaRegionDraftState(region)
+    const visibleRegionDrafts = currentChinaDrafts.filter(
+      (draft) => draft.code === regionCode && draft.status !== 'deleted'
+    )
+
+    if (activeChinaCityCode === regionCode) {
+      const hasOnlyNewDrafts = visibleRegionDrafts.length > 0 && visibleRegionDrafts.every((draft) => !draft.sourceId)
+      if (hasOnlyNewDrafts) {
+        updateCurrentChinaDrafts((drafts) => drafts.filter((draft) => !(draft.code === regionCode && !draft.sourceId)))
+      }
+      setActiveChinaCityCode('')
+      return
+    }
+
     setActiveChinaCityCode(String(region.code))
-    if (!hasChinaDraftForRegion(region.code)) {
+    if (regionState === 'existing') {
+      updateCurrentChinaDrafts((drafts) => {
+        if (drafts.some((draft) => draft.code === regionCode && !draft.sourceId && draft.status !== 'deleted')) {
+          return drafts
+        }
+
+        return [
+          ...drafts,
+          createChinaDraftEntry({
+            createdAt: dayjs().startOf('month').valueOf(),
+            region,
+            status: 'new',
+          }),
+        ]
+      })
+      setActiveChinaPicker(null)
+      return
+    }
+
+    if (regionState === 'empty') {
       handleChinaDraftAdd(region)
     }
   }
@@ -844,51 +1132,60 @@ export default function CheckinModal({ open, onClose, prefill }) {
       return
     }
 
-    const provinceName = getProvinceDisplayName(null, selectedProvince, prefill)
-    const provinceCheckins = checkins.filter(
-      (item) => item.type === 'china_city' && getChinaProvinceCode(item) === selectedProvinceCode
-    )
-    const existingDraftIds = new Set(
-      currentChinaDrafts.filter((draft) => draft.sourceId && draft.status !== 'deleted').map((draft) => draft.sourceId)
-    )
+    const activeVisibleDrafts = currentChinaVisibleDrafts.filter((draft) => draft.status !== 'deleted')
+    setIsChinaSubmitting(true)
 
-    for (const checkin of provinceCheckins) {
-      if (!existingDraftIds.has(checkin.id)) {
-        await removeCheckin(checkin.id, getToken)
-      }
-    }
-
-    for (const draft of currentChinaDrafts.filter((entry) => entry.sourceId && entry.status !== 'deleted')) {
-      if (draft.originalCreatedAt !== draft.createdAt) {
-        await updateCheckinTime(draft.sourceId, draft.createdAt, getToken)
-      }
-    }
-
-    for (const draft of currentChinaDrafts.filter((entry) => !entry.sourceId && entry.status !== 'deleted')) {
-      await addCheckin(
-        {
-          type: 'china_city',
-          code: String(draft.code),
-          province_code: selectedProvinceCode,
-          province_name: provinceName,
-          city_name: draft.cityName,
-          name_zh: `${provinceName} · ${draft.displayName}`,
-          name_en: draft.cityName,
-          created_at: draft.createdAt,
-        },
-        getToken
+    try {
+      const provinceName = getProvinceDisplayName(null, selectedProvince, prefill)
+      const provinceCheckins = checkins.filter(
+        (item) => item.type === 'china_city' && getChinaProvinceCode(item) === selectedProvinceCode
       )
-    }
+      const existingDraftIds = new Set(
+        activeVisibleDrafts.filter((draft) => draft.sourceId).map((draft) => draft.sourceId)
+      )
 
-    setShowConfetti(true)
-    message.success({
-      content: `🎉 已提交 ${provinceName}`,
-      icon: '🚩',
-    })
-    setTimeout(() => {
-      setShowConfetti(false)
-      onClose()
-    }, 1600)
+      for (const checkin of provinceCheckins) {
+        if (!existingDraftIds.has(checkin.id)) {
+          await removeCheckin(checkin.id, getToken)
+        }
+      }
+
+      for (const draft of activeVisibleDrafts.filter((entry) => entry.sourceId)) {
+        if (draft.originalCreatedAt !== draft.createdAt) {
+          await updateCheckinTime(draft.sourceId, draft.createdAt, getToken)
+        }
+      }
+
+      for (const draft of activeVisibleDrafts.filter((entry) => !entry.sourceId)) {
+        await addCheckin(
+          {
+            type: 'china_city',
+            code: String(draft.code),
+            province_code: selectedProvinceCode,
+            province_name: provinceName,
+            city_name: draft.cityName,
+            name_zh: `${provinceName} · ${draft.displayName}`,
+            name_en: draft.cityName,
+            created_at: draft.createdAt,
+          },
+          getToken
+        )
+      }
+
+      setShowConfetti(true)
+      message.success({
+        content: `🎉 已提交 ${provinceName}`,
+        icon: '🚩',
+      })
+      setTimeout(() => {
+        setShowConfetti(false)
+        onClose()
+      }, 1600)
+    } catch (error) {
+      console.error('Failed to submit china checkins', error)
+      setIsChinaSubmitting(false)
+      message.error('提交失败，请稍后重试')
+    }
   }
 
   const handleWorldConfirm = async () => {
@@ -946,7 +1243,7 @@ export default function CheckinModal({ open, onClose, prefill }) {
       onCancel={onClose}
       footer={null}
       centered
-      width={mapMode === 'china' ? 1040 : 720}
+      width={mapMode === 'china' ? 1140 : 720}
       classNames={{ content: `checkin-modal-content ${mapMode === 'world' ? 'checkin-modal-content--world' : ''}`.trim() }}
       styles={{
         mask: { background: 'rgba(15, 23, 42, 0.45)' },
@@ -958,12 +1255,14 @@ export default function CheckinModal({ open, onClose, prefill }) {
       maskTransitionName="ant-fade"
       afterOpenChange={(nextOpen) => {
         if (!nextOpen) {
+          setIsChinaSubmitting(false)
           setSelectedProvinceCode('')
-          setChinaViewMode('map')
           setActiveChinaCityCode('')
+          setHoveredChinaCityCode('')
           setChinaDraftsByProvince({})
           setActiveChinaPicker(null)
           setWorldQuery('')
+          setShowWorldResults(false)
           setSelectedWorld(null)
           setWorldDraftsByCode({})
           setActiveWorldPicker(null)
@@ -973,12 +1272,14 @@ export default function CheckinModal({ open, onClose, prefill }) {
           return
         }
 
+        setIsChinaSubmitting(false)
         setSelectedProvinceCode(String(prefill?.code || provinces[0]?.code || ''))
-        setChinaViewMode('map')
         setActiveChinaCityCode('')
+        setHoveredChinaCityCode('')
         setChinaDraftsByProvince({})
         setActiveChinaPicker(null)
         setWorldQuery('')
+        setShowWorldResults(false)
         setWorldDraftsByCode({})
         setActiveWorldPicker(null)
         setProvinceGeoData(provinceGeoCache[selectedProvinceCode] || null)
@@ -1024,26 +1325,23 @@ export default function CheckinModal({ open, onClose, prefill }) {
               <div className="china-mode-toolbar">
                 <Select
                   value={selectedProvinceCode || undefined}
+                  showSearch
+                  optionFilterProp="label"
+                  filterOption={(input, option) => (
+                    String(option?.label || '').toLowerCase().includes(input.trim().toLowerCase())
+                  )}
                   onChange={(value) => {
                     setSelectedProvinceCode(value)
                     setActiveChinaCityCode('')
+                    setHoveredChinaCityCode('')
                     setActiveChinaPicker(null)
                   }}
                   options={provinces.map((province) => ({ value: province.code, label: province.name }))}
                   className="province-inline-select"
                 />
-                <button
-                  type="button"
-                  className="china-view-toggle-btn"
-                  onClick={() => setChinaViewMode((current) => (current === 'map' ? 'list' : 'map'))}
-                >
-                  {chinaViewMode === 'map' ? <UnorderedListOutlined /> : <AppstoreOutlined />}
-                  <span>{chinaViewMode === 'map' ? '查看列表' : '查看地图'}</span>
-                </button>
               </div>
 
-              {chinaViewMode === 'map' ? (
-                <div className="province-map-shell">
+              <div className="province-map-shell">
                 <div className="province-map-controls">
                   <button
                     type="button"
@@ -1107,27 +1405,44 @@ export default function CheckinModal({ open, onClose, prefill }) {
                     >
                       <Geographies geography={activeProvinceGeoData}>
                         {({ geographies }) => geographies.map((geo) => {
-                          const region = provinceRegions.find((item) => item.code === (geo.properties?.adcode?.toString() || ''))
-                            || provinceRegions.find((item) => item.displayName === getRegionDisplayName(geo))
+                          const region = WHOLE_PROVINCE_SELECTION_CODES.has(String(selectedProvinceCode))
+                            ? provinceRegions[0]
+                            : (
+                              provinceRegions.find((item) => item.code === (geo.properties?.adcode?.toString() || ''))
+                              || provinceRegions.find((item) => item.displayName === getRegionDisplayName(geo))
+                            )
 
                           if (!region) return null
 
                           const regionState = getChinaRegionDraftState(region)
-                          const selected = isChinaRegionSelected(region.code)
+                          const selected = isChinaRegionSelected(region)
+                          const hovered = isChinaRegionHovered(region.code)
                           const fill = regionState === 'new' ? '#FBCFE8' : (regionState === 'existing' ? '#BFDBFE' : '#FFFFFF')
-                          const stroke = selected ? '#EC4899' : (regionState === 'empty' ? '#CBD5E1' : '#60A5FA')
+                          const hoverFill = regionState === 'new' ? '#F9A8D4' : (regionState === 'existing' ? '#93C5FD' : '#EFF6FF')
+                          const stroke = selected
+                            ? '#EC4899'
+                            : (hovered ? '#2563EB' : (regionState === 'empty' ? '#CBD5E1' : '#60A5FA'))
+                          const hoverStroke = selected ? '#DB2777' : (regionState === 'empty' ? '#93C5FD' : '#3B82F6')
 
                           return (
                             <Geography
                               key={geo.rsmKey}
                               geography={geo}
                               onClick={() => handleChinaRegionToggle(region)}
-                              className={`province-detail-geo ${regionState !== 'empty' ? 'province-detail-geo--checked' : ''} ${selected ? 'province-detail-geo--selected' : ''}`}
+                              onMouseEnter={() => setHoveredChinaCityCode(region.code)}
+                              onMouseLeave={() => setHoveredChinaCityCode((current) => (current === region.code ? '' : current))}
+                              className={`province-detail-geo ${regionState !== 'empty' ? 'province-detail-geo--checked' : ''} ${selected ? 'province-detail-geo--selected' : ''} ${hovered ? 'province-detail-geo--hovered' : ''}`}
                               style={{
-                                default: { fill, stroke, strokeWidth: selected ? 1.8 : 1.2, outline: 'none', cursor: 'pointer' },
+                                default: {
+                                  fill: hovered ? hoverFill : fill,
+                                  stroke: hovered ? hoverStroke : stroke,
+                                  strokeWidth: selected ? 1.8 : (hovered ? 1.5 : 1.2),
+                                  outline: 'none',
+                                  cursor: 'pointer',
+                                },
                                 hover: {
-                                  fill: regionState === 'new' ? '#F9A8D4' : (regionState === 'existing' ? '#93C5FD' : '#EFF6FF'),
-                                  stroke: selected ? '#DB2777' : (regionState === 'empty' ? '#93C5FD' : '#3B82F6'),
+                                  fill: hoverFill,
+                                  stroke: hoverStroke,
                                   strokeWidth: selected ? 2.1 : 1.5,
                                   outline: 'none',
                                   cursor: 'pointer',
@@ -1144,21 +1459,40 @@ export default function CheckinModal({ open, onClose, prefill }) {
                         })}
                       </Geographies>
 
+                      {WHOLE_PROVINCE_SELECTION_CODES.has(String(selectedProvinceCode)) && provinceSubdivisionRegions.map((region) => (
+                        <Marker key={`sub-label-${region.code}`} coordinates={provinceLabelCoordinates[region.code] || region.centroid}>
+                          <g
+                            className="province-detail-label-group province-detail-label-group--subtle"
+                            transform={`scale(${1 / provinceViewport.zoom})`}
+                          >
+                            <text
+                              textAnchor="middle"
+                              className={`province-detail-label province-detail-label--subtle ${region.shortName.length >= 4 ? 'province-detail-label--compact' : ''}`}
+                            >
+                              {region.shortName}
+                            </text>
+                          </g>
+                        </Marker>
+                      ))}
+
                       {provinceRegions.map((region) => {
                         const regionState = getChinaRegionDraftState(region)
-                        const selected = isChinaRegionSelected(region.code)
+                        const selected = isChinaRegionSelected(region)
+                        const hovered = isChinaRegionHovered(region.code)
                         return (
-                          <Marker key={`label-${region.code}`} coordinates={region.centroid}>
+                          <Marker key={`label-${region.code}`} coordinates={provinceLabelCoordinates[region.code] || region.centroid}>
                             <g
                               className="province-detail-label-group"
                               onClick={() => handleChinaRegionToggle(region)}
+                              onMouseEnter={() => setHoveredChinaCityCode(region.code)}
+                              onMouseLeave={() => setHoveredChinaCityCode((current) => (current === region.code ? '' : current))}
                               transform={`scale(${1 / provinceViewport.zoom})`}
                             >
                               <text
                                 textAnchor="middle"
-                                className={`province-detail-label ${regionState !== 'empty' ? 'province-detail-label--checked' : ''} ${selected ? 'province-detail-label--selected' : ''}`}
+                                className={`province-detail-label ${region.shortName.length >= 4 ? 'province-detail-label--compact' : ''} ${regionState !== 'empty' ? 'province-detail-label--checked' : ''} ${selected ? 'province-detail-label--selected' : ''} ${hovered ? 'province-detail-label--hovered' : ''}`}
                               >
-                                {region.displayName}
+                                {region.shortName}
                               </text>
                             </g>
                           </Marker>
@@ -1177,115 +1511,122 @@ export default function CheckinModal({ open, onClose, prefill }) {
                     <span>粉色：新打卡</span>
                   </span>
                 </div>
-              </div>
-            ) : (
-              <div className="china-history-list">
-                {currentChinaVisibleDrafts.length === 0 && (
-                  <div className="china-city-tag-hint">
-                    <BulbOutlined />
-                    <span>选择一个城市点亮它吧</span>
+                <div className="china-map-overlay">
+                  <div className="china-history-list china-history-list--overlay">
+                    {currentChinaVisibleDrafts.length === 0 ? (
+                      <div className="china-city-tag-hint china-city-tag-hint--overlay">
+                        <BulbOutlined />
+                        <span>选择一个城市点亮它吧</span>
+                      </div>
+                    ) : (
+                      currentChinaVisibleDrafts.map((draft) => (
+                        <div
+                          key={draft.draftId}
+                          className={`world-history-item china-history-item ${activeChinaCityCode === draft.code && (draft.status === 'new' || draft.status === 'modified') ? 'china-history-item--active' : ''}`}
+                          onClick={() => setActiveChinaCityCode(draft.code)}
+                        >
+                          <div className="world-history-main china-history-main">
+                            <div className="china-history-row">
+                              <div className="china-history-city">{draft.displayName}</div>
+                              {activeChinaPicker?.draftId === draft.draftId ? (
+                                <DatePicker
+                                  picker="month"
+                                  needConfirm
+                                  open
+                                  allowClear={false}
+                                  value={dayjs(activeChinaPicker.value ?? draft.createdAt)}
+                                  onPanelChange={(value) => {
+                                    setActiveChinaPicker((current) => (
+                                      current?.draftId === draft.draftId
+                                        ? { ...current, value: value?.valueOf() ?? null }
+                                        : current
+                                    ))
+                                  }}
+                                  onChange={(value) => {
+                                    setActiveChinaPicker((current) => (
+                                      current?.draftId === draft.draftId
+                                        ? { ...current, value: value?.valueOf() ?? null }
+                                        : current
+                                    ))
+                                  }}
+                                  onOk={(value) => {
+                                    const nextValue = value?.valueOf?.() ?? activeChinaPicker?.value ?? null
+                                    if (nextValue == null) return
+                                    handleChinaDraftMonthChange(draft.draftId, dayjs(nextValue))
+                                  }}
+                                  onOpenChange={(visible) => {
+                                    if (!visible) setActiveChinaPicker(null)
+                                  }}
+                                  className="world-history-picker"
+                                />
+                              ) : (
+                                <div className="world-history-date">{dayjs(draft.createdAt).format('YYYY年M月')}</div>
+                              )}
+                            </div>
+                            <div className="china-history-meta">
+                              <span className={`world-history-badge world-history-badge--${draft.status} china-history-badge china-history-badge--${draft.status}`}>
+                                {draft.status === 'existing' ? '已打卡' : draft.status === 'modified' ? '修改' : '新打卡'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="world-history-actions">
+                            <button
+                              type="button"
+                              className="world-history-icon-btn"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                const trackedDraft = trackChinaVisibleDraft(draft)
+                                setActiveChinaPicker({ draftId: trackedDraft.draftId, value: trackedDraft.createdAt })
+                              }}
+                              aria-label="修改打卡记录"
+                            >
+                              <EditOutlined />
+                            </button>
+                            <Popconfirm
+                              title="删除这条打卡记录？"
+                              okText="删除"
+                              cancelText="取消"
+                              onConfirm={() => {
+                                const trackedDraft = trackChinaVisibleDraft(draft)
+                                handleChinaDraftDelete(trackedDraft.draftId)
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="world-history-icon-btn world-history-icon-btn--danger"
+                                aria-label="删除打卡记录"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                <DeleteOutlined />
+                              </button>
+                            </Popconfirm>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                )}
-                <div className="city-tag-grid china-city-tag-grid">
-                  {provinceRegions.map((region) => {
-                    const regionState = getChinaRegionDraftState(region)
-                    return (
-                      <button
-                        key={`city-tag-${region.code}`}
-                        type="button"
-                        className={`city-tag ${regionState === 'new' ? 'city-tag--pending' : ''} ${regionState === 'existing' ? 'city-tag--checked' : ''}`}
-                        onClick={() => handleChinaDraftAdd(region)}
-                      >
-                        <span className="city-tag-name">{region.displayName}</span>
-                        {regionState === 'existing' && <span className="city-tag-meta">已打卡</span>}
-                      </button>
-                    )
-                  })}
+                  <div className="china-overlay-copy checkin-footer-copy checkin-footer-copy--china">
+                    点击城市新增打卡
+                  </div>
                 </div>
-                {currentChinaVisibleDrafts.map((draft) => (
-                  <div
-                    key={draft.draftId}
-                    className={`world-history-item china-history-item ${activeChinaCityCode === draft.code ? 'china-history-item--active' : ''}`}
-                    onClick={() => setActiveChinaCityCode(draft.code)}
-                  >
-                    <div className="world-history-main">
-                      <div className="china-history-city">{draft.displayName}</div>
-                      {activeChinaPicker?.draftId === draft.draftId ? (
-                        <DatePicker
-                          picker="month"
-                          needConfirm
-                          open
-                          allowClear={false}
-                          value={dayjs(activeChinaPicker.value ?? draft.createdAt)}
-                          onPanelChange={(value) => {
-                            setActiveChinaPicker((current) => (
-                              current?.draftId === draft.draftId
-                                ? { ...current, value: value?.valueOf() ?? null }
-                                : current
-                            ))
-                          }}
-                          onChange={(value) => {
-                            setActiveChinaPicker((current) => (
-                              current?.draftId === draft.draftId
-                                ? { ...current, value: value?.valueOf() ?? null }
-                                : current
-                            ))
-                          }}
-                          onOk={(value) => {
-                            const nextValue = value?.valueOf?.() ?? activeChinaPicker?.value ?? null
-                            if (nextValue == null) return
-                            handleChinaDraftMonthChange(draft.draftId, dayjs(nextValue))
-                          }}
-                          onOpenChange={(visible) => {
-                            if (!visible) setActiveChinaPicker(null)
-                          }}
-                          className="world-history-picker"
-                        />
-                      ) : (
-                        <div className="world-history-date">{dayjs(draft.createdAt).format('YYYY年M月')}</div>
-                      )}
-                      <span className={`world-history-badge world-history-badge--${draft.status}`}>
-                        {draft.status === 'existing' ? '已打卡' : draft.status === 'modified' ? '修改' : '新打卡'}
-                      </span>
-                    </div>
-                    <div className="world-history-actions">
-                        <button
-                          type="button"
-                          className="world-history-icon-btn"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            const trackedDraft = trackChinaVisibleDraft(draft)
-                            setActiveChinaPicker({ draftId: trackedDraft.draftId, value: trackedDraft.createdAt })
-                          }}
-                          aria-label="修改打卡记录"
-                        >
-                        <EditOutlined />
-                      </button>
-                      <Popconfirm
-                        title="删除这条打卡记录？"
-                        okText="删除"
-                        cancelText="取消"
-                        onConfirm={() => {
-                          const trackedDraft = trackChinaVisibleDraft(draft)
-                          handleChinaDraftDelete(trackedDraft.draftId)
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="world-history-icon-btn world-history-icon-btn--danger"
-                          aria-label="删除打卡记录"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      </Popconfirm>
-                    </div>
-                  </div>
-                ))}
               </div>
-            )}
             </div>
           </>
+        )}
+
+        {mapMode === 'china' && (
+          <div className="checkin-modal-footer checkin-modal-footer--china-root">
+            <Button
+              type="primary"
+              size="large"
+              className="checkin-confirm-btn checkin-confirm-btn--china-floating"
+              onClick={handleChinaBatchCheckin}
+              disabled={!hasChinaDraftChanges || isChinaSubmitting}
+              loading={isChinaSubmitting}
+            >
+              提交打卡
+            </Button>
+          </div>
         )}
 
         {mapMode === 'world' && (
@@ -1293,7 +1634,14 @@ export default function CheckinModal({ open, onClose, prefill }) {
             <div className="world-search-wrap">
               <Input
                 value={worldQuery}
-                onChange={(e) => setWorldQuery(e.target.value)}
+                onChange={(e) => {
+                  setWorldQuery(e.target.value)
+                  setSelectedWorld(null)
+                  setActiveWorldPicker(null)
+                  setShowWorldResults(true)
+                }}
+                onFocus={() => setShowWorldResults(true)}
+                onClick={() => setShowWorldResults(true)}
                 prefix={<SearchOutlined />}
                 placeholder="搜索国家名称"
                 className="world-search-input"
@@ -1393,49 +1741,32 @@ export default function CheckinModal({ open, onClose, prefill }) {
               </div>
             )}
 
-            {worldResults.length === 0 ? (
-              <Empty description={emptyState} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <div className="world-card-list">
-                {worldResults.map((item) => {
-                  const checked = checkedWorldCodes.has(item.code)
-                  return (
-                    <button
-                      key={item.code}
-                      type="button"
-                      className={`checkin-result-item ${checked ? 'checkin-result-item--checked' : ''} ${selectedWorld?.code === item.code ? 'checkin-result-item--selected' : ''}`}
-                      onClick={() => selectWorldCountry(item)}
-                    >
-                      <div className="result-names">
-                        <span className="result-name-zh">{item.name}</span>
-                        <span className="result-name-en">{item.nameEn}</span>
-                      </div>
-                      {checked && <span className="result-checkin-btn">已点亮</span>}
-                    </button>
-                  )
-                })}
-              </div>
+            {showWorldResults && (
+              worldResults.length > 0 && (
+                <div className="world-card-list">
+                  {worldResults.map((item) => {
+                    const checked = checkedWorldCodes.has(item.code)
+                    return (
+                      <button
+                        key={item.code}
+                        type="button"
+                        className={`checkin-result-item ${checked ? 'checkin-result-item--checked' : ''} ${selectedWorld?.code === item.code ? 'checkin-result-item--selected' : ''}`}
+                        onClick={() => selectWorldCountry(item)}
+                      >
+                        <div className="result-names">
+                          <span className="result-name-zh">{item.name}</span>
+                          <span className="result-name-en">{item.nameEn}</span>
+                        </div>
+                        {checked && <span className="result-checkin-btn">已点亮</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
             )}
           </>
         )}
       </div>
-
-      {mapMode === 'china' && (
-        <div className="checkin-modal-footer checkin-modal-footer--china">
-          <div className="checkin-footer-copy checkin-footer-copy--china">
-            点击城市新增打卡
-          </div>
-          <Button
-            type="primary"
-            size="large"
-            className="checkin-confirm-btn"
-            onClick={handleChinaBatchCheckin}
-            disabled={!hasChinaDraftChanges}
-          >
-            提交
-          </Button>
-        </div>
-      )}
 
       {mapMode === 'world' && (
         <div className="checkin-modal-footer checkin-modal-footer--world">

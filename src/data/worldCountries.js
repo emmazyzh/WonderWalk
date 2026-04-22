@@ -35,9 +35,6 @@ export const WORLD_COUNTRIES_LIST = [
   { code: 'DNK', name: '丹麦', nameEn: 'Denmark' },
   { code: 'FIN', name: '芬兰', nameEn: 'Finland' },
   { code: 'POL', name: '波兰', nameEn: 'Poland' },
-  { code: 'TWN', name: '台湾', nameEn: 'Taiwan' },
-  { code: 'HKG', name: '香港', nameEn: 'Hong Kong' },
-  { code: 'MAC', name: '澳门', nameEn: 'Macao' },
 ]
 
 const WORLD_COUNTRY_NAME_MAP = {
@@ -180,7 +177,7 @@ const WORLD_COUNTRY_NAME_MAP = {
   Australia: '澳大利亚',
   'Sri Lanka': '斯里兰卡',
   China: '中国',
-  Taiwan: '中国台湾',
+  Taiwan: '中国',
   Italy: '意大利',
   Denmark: '丹麦',
   'United Kingdom': '英国',
@@ -220,6 +217,52 @@ const WORLD_COUNTRY_NAME_MAP = {
   France: '法国',
 }
 
+const WORLD_COUNTRY_CODE_ALIASES = {
+  'United States of America': 'USA',
+  'United States': 'USA',
+  'United Kingdom': 'GBR',
+  Russia: 'RUS',
+  Turkey: 'TUR',
+  Vietnam: 'VNM',
+  Malaysia: 'MYS',
+  Japan: 'JPN',
+  China: 'CHN',
+  Singapore: 'SGP',
+  Thailand: 'THA',
+  Indonesia: 'IDN',
+  Philippines: 'PHL',
+  India: 'IND',
+  Canada: 'CAN',
+  Australia: 'AUS',
+  'New Zealand': 'NZL',
+  Germany: 'DEU',
+  France: 'FRA',
+  Italy: 'ITA',
+  Spain: 'ESP',
+  Portugal: 'PRT',
+  Netherlands: 'NLD',
+  Belgium: 'BEL',
+  Switzerland: 'CHE',
+  Austria: 'AUT',
+  Greece: 'GRC',
+  Norway: 'NOR',
+  Sweden: 'SWE',
+  Denmark: 'DNK',
+  Finland: 'FIN',
+  Poland: 'POL',
+  'South Korea': 'KOR',
+  Korea: 'KOR',
+  Taiwan: 'CHN',
+  'Hong Kong': 'CHN',
+  Macao: 'CHN',
+  Macau: 'CHN',
+  Egypt: 'EGY',
+  'South Africa': 'ZAF',
+  Iceland: 'ISL',
+  UAE: 'ARE',
+  'United Arab Emirates': 'ARE',
+}
+
 export function getWorldCountryByCode(code) {
   return WORLD_COUNTRIES_LIST.find((item) => item.code === code) || null
 }
@@ -228,4 +271,13 @@ export function getWorldCountryNameZh(code, englishName = '') {
   const byCode = getWorldCountryByCode(code)?.name
   if (byCode) return byCode
   return WORLD_COUNTRY_NAME_MAP[englishName] || ''
+}
+
+export function getWorldCountryCodeByName(name = '') {
+  if (!name) return ''
+
+  const exactMatch = WORLD_COUNTRIES_LIST.find((item) => item.nameEn === name || item.name === name)
+  if (exactMatch) return exactMatch.code
+
+  return WORLD_COUNTRY_CODE_ALIASES[name] || ''
 }

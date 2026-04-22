@@ -104,6 +104,12 @@
   color: var(--color-primary);
 }
 
+.nav-map-toggle-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
 .nav-avatar-btn {
   width: 46px;
   height: 46px;
